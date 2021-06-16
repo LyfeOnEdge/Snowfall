@@ -19,12 +19,21 @@ class App(Ursina):
 		self.frame = 0 #Frame count
 		self.lasttxt = None # Holder for debug text
 		self.input_map = {'escape' : self.exit}
-		self.terrainloader = DynamicTerrainLoader(self)
-		self.skybox = SkyBox()
-		self.modelloader = ModelLoader(self)
-		# self.snowloader = SnowLoader(self)
+
 		self.player = FirstPersonController(position=(0.5 * TILE_SCALE, 30, 0.5 * TILE_SCALE))
 		self.player.speed = 40
+
+		self.modelloader = ModelLoader(self)
+		self.modelloader.preload_models()
+
+		self.terrainloader = DynamicTerrainLoader(self)
+		self.terrainloader.update()
+		self.terrainloader.update_fog()
+
+		self.skybox = SkyBox()
+
+		# self.snowloader = SnowLoader(self)
+		
 		
 	def update(self, dt):
 		self.input_task()

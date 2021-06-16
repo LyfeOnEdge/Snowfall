@@ -159,8 +159,8 @@ def get_spawn_from_map(m, val):
 def get_biome_from_biomemap_value(val):
 	for k in BIOME_MAP.keys():
 		if val < k:
-			return BIOME_MAP[k]
-	return BIOME_MAP[BARREN]
+			return BIOME_MAP[k], k
+	return BIOME_MAP[BARREN], BARREN
 
 
 class TerrainChunk(Entity):
@@ -208,12 +208,13 @@ class TerrainChunk(Entity):
 				if x < lsm2 and z < lsm2:
 					random.seed(self.spawnmap[z][x])
 					spawnval = random.uniform(0,1)
-					m = get_biome_from_biomemap_value(biomemap[z][x])
+					m, b = get_biome_from_biomemap_value(biomemap[z][x])
 					spawn = get_spawn_from_map(m[1], spawnval)
 					if spawn:
 						app.modelloader.load_model(spawn,
 							self,
-							position = vec * TILE_SCALE + Vec3(chunk_x, 0, chunk_z) * TILE_SCALE - Vec3(0,0.5,0)
+							position = vec * TILE_SCALE + Vec3(chunk_x, 0, chunk_z) * TILE_SCALE - Vec3(0,0.5,0),
+							color = BIOME_MAP[b][0]
 						)
 
 		self.mesh = Mesh(vertices=self.vertices, triangles=self.triangles, uvs=self.uvs, normals=self.normals)

@@ -42,8 +42,6 @@ class ModelLoader:
 		self.models_to_load = [] #Models should be added in order of importance
 		self.loaded_models = []
 
-		self.preload_models()
-
 	def get_tree(self):			return rdm.choice(self.trees)
 	def get_livingtree(self):	return rdm.choice(self.livingtrees)
 	def get_rock(self):			return rdm.choice(self.rocks)
@@ -61,15 +59,6 @@ class ModelLoader:
 		self.models_to_load.append((model, chunk, args, kwargs))
 
 	def preload_models(self): #Gets rid of loading lag
-		# self.models = {
-		# 	"exit" : 'exit',
-		# 	"branch" : 'branch',
-		# 	"portal" : 'snowgate',
-		# 	"treeshroom" : 'treeshroom',
-		# 	"mushroom" : "mushroom",
-		# 	'log' : 'log',
-		# 	"mushroomcircle" : "mushroomcircle"
-		# }
 		mdls = [self.models[m] for m in self.models.keys()]
 		self.modellists = [self.smallmushrooms, self.trees, self.livingtrees, self.rocks, self.sharprocks, self.stumps, self.stickballs, self.models]
 		for ml in self.modellists:
@@ -78,10 +67,7 @@ class ModelLoader:
 	def update(self):
 		while self.models_to_load:
 			model, chunk, args, kwargs = self.models_to_load.pop(0)
-
-			if not chunk.active:
-				continue
-
+			if not chunk.active: continue
 			x,y,z = kwargs.get('position')
 			hit_info = None
 			escape = False
@@ -94,12 +80,7 @@ class ModelLoader:
 
 class baseEntity(Entity):
 	def __init__(self, *args, **kwargs):
-		kw = {
-			'origin_y' : -0.5,
-			'origin_x' : -0.5,
-			'origin_z' : -0.5,
-		}
-		kwargs.update(kw)
+		kwargs.update({'origin_y':-0.5,'origin_x':-0.5,'origin_z':-0.5,})		 
 		Entity.__init__(self, *args, **kwargs)
 
 	def randomize(self):
@@ -113,39 +94,21 @@ class baseEntity(Entity):
 class SmallMushroom(baseEntity):
 	def __init__(self, app,  *args, **kwargs):
 		mesh = app.modelloader.get_smallmushroom()
-		kw = {
-			'model' : mesh,
-			'texture' : 'brick',
-			'color' : rgb(223,222,221),
-		}
-		if 'color' in kwargs: kw.pop('color')
-		kwargs.update(kw)
+		kwargs.update({'model':mesh,'texture':'brick'})		 
 		baseEntity.__init__(self, *args, **kwargs)
 		self.randomize()
 
 class MushroomCircle(baseEntity):
 	def __init__(self, app,  *args, **kwargs):
 		mesh = app.modelloader.get("mushroomcircle")
-		kw = {
-			'model' : mesh,
-			'texture' : 'brick',
-			'color' : rgb(223,222,221),
-		}
-		if 'color' in kwargs: kw.pop('color')
-		kwargs.update(kw)
+		kwargs.update({'model':mesh,'texture':'brick'})
 		baseEntity.__init__(self, *args, **kwargs)
 		self.randomize()
 
 class Mushroom(baseEntity):
 	def __init__(self, app,  *args, **kwargs):
 		mesh = app.modelloader.get("mushroom")
-		kw = {
-			'model' : mesh,
-			'texture' : 'brick',
-			'color' : rgb(223,222,221),
-		}
-		if 'color' in kwargs: kw.pop('color')
-		kwargs.update(kw)
+		kwargs.update({'model':mesh,'texture':'brick'})
 		baseEntity.__init__(self, *args, **kwargs)
 		self.randomize()
 
@@ -153,13 +116,7 @@ class Mushroom(baseEntity):
 class Branch(baseEntity):
 	def __init__(self, app,  *args, **kwargs):
 		mesh = app.modelloader.get("branch")
-		kw = {
-			'model' : mesh,
-			'texture' : 'brick',
-			'color' : rgb(223,222,221),
-		}
-		if 'color' in kwargs: kw.pop('color')
-		kwargs.update(kw)
+		kwargs.update({'model':mesh,'texture':'brick'})
 		baseEntity.__init__(self, *args, **kwargs)
 		self.randomize()
 
@@ -167,13 +124,7 @@ class Branch(baseEntity):
 class StickBall(baseEntity):
 	def __init__(self, app,  *args, **kwargs):
 		mesh = app.modelloader.get_stickball()
-		kw = {
-			'model' : mesh,
-			'texture' : 'brick',
-			'color' : rgb(223,222,221),
-		}
-		if 'color' in kwargs: kw.pop('color')
-		kwargs.update(kw)
+		kwargs.update({'model':mesh,'texture':'brick'})
 		baseEntity.__init__(self, *args, **kwargs)
 		self.randomize()
 
@@ -181,13 +132,7 @@ class StickBall(baseEntity):
 class Stump(baseEntity):
 	def __init__(self, app,  *args, **kwargs):
 		mesh = app.modelloader.get_stump()
-		kw = {
-			'model' : mesh,
-			'texture' : 'brick',
-			'color' : rgb(223,222,221),
-		}
-		if 'color' in kwargs: kw.pop('color')
-		kwargs.update(kw)
+		kwargs.update({'model':mesh,'texture':'brick'})
 		baseEntity.__init__(self, *args, **kwargs)
 		self.randomize()
 
@@ -195,43 +140,28 @@ class Stump(baseEntity):
 class Rock(baseEntity):
 	def __init__(self, app,  *args, **kwargs):
 		mesh = app.modelloader.get_rock()
-		kw = {
-			'model' : mesh,
-			'texture' : 'brick',
-			'color' : rgb(223,222,221),
-		}
-		if 'color' in kwargs: kw.pop('color')
-		kwargs.update(kw)
+		kwargs.update({'model':mesh,'texture':'brick'})
 		baseEntity.__init__(self, *args, **kwargs)
 		self.randomize()
 
 class SharpRock(baseEntity):
 	def __init__(self, app,  *args, **kwargs):
 		mesh = app.modelloader.get_sharprock()
-		kw = {
-			'model' : mesh,
-			'texture' : 'brick',
-			'color' : rgb(223,222,221),
-		}
-		if 'color' in kwargs: kw.pop('color')
-		kwargs.update(kw)
+		kwargs.update({'model':mesh,'texture':'brick'})
 		baseEntity.__init__(self, *args, **kwargs)
 		self.randomize()
 
 class Tree(baseEntity):
 	def __init__(self, app, *args, **kwargs):
 		m = app.modelloader.get_tree()
-		kw = {
+		kwargs.update({
 			'model' : m,
 			'texture' : 'brick',
-			'color' : rgb(223,222,221),
 			'origin_y' : -0.5,
 			'origin_x' : 0,
 			'origin_z' : 0,
 			'scale' : (1,1,1)
-		}
-		if 'color' in kwargs: kw.pop("color")
-		kwargs.update(kw)
+		})
 		baseEntity.__init__(self, *args, **kwargs)
 		self.collider = m
 		self.y -= 0.35
@@ -241,14 +171,11 @@ class Tree(baseEntity):
 class LivingTree(baseEntity):
 	def __init__(self, app, *args, **kwargs):
 		m = app.modelloader.get_livingtree()
-		kw = {
+		kwargs.update({
 			'model' : m,
 			'texture' : 'brick',
-			'color' : rgb(223,222,221),
 			'origin_y' : -0.5,
-		}
-		if 'color' in kwargs: kw.pop("color")
-		kwargs.update(kw)
+		})
 		baseEntity.__init__(self, *args, **kwargs)
 		self.collider = m
 		self.y -= 0.35
@@ -258,13 +185,7 @@ class LivingTree(baseEntity):
 class Log(baseEntity):
 	def __init__(self, app, *args, **kwargs):
 		m = app.modelloader.get('log')
-		kw = {
-			'model' : m,
-			'texture' : 'brick',
-			'color' : rgb(223,222,221),
-		}
-		if 'color' in kwargs: kw.pop("color")
-		kwargs.update(kw)
+		kwargs.update({'model':m,'texture':'brick'})
 		baseEntity.__init__(self, *args, **kwargs)
 		self.collider = m
 		self.randomize()
@@ -281,7 +202,7 @@ class Portal:
 class basePortal:
 	def __init__(self, app, *args, **kwargs):
 		mesh = app.modelloader.get("portal")
-		kw = {
+		kwargs.update({
 			'model' : mesh,
 			'double_sided' : 'True',
 			'origin_y' : -0.25,
@@ -292,8 +213,7 @@ class basePortal:
 			'loop' : True,
 			'autoplay' : False,
 			'fps' : 5
-		}
-		kwargs.update(kw)
+		})
 		self.anim = Animation('snowgate.gif', *args, **kwargs)
 		self.animator = Animator( animations = {'default' : self.anim})
 		self.animator.state = 'default'
@@ -305,18 +225,15 @@ class basePortal:
 class Exit(Entity):
 	def __init__(self, app, *args, **kwargs):
 		mesh = app.modelloader.get("exit")
-		kw = {
+		kwargs.update({
 			'model' : mesh,
 			'texture' : 'brick',
-			# 'color' : color.brown,
-			# 'color' : rgb(178,166,158),
 			'color' : rgb(223,222,221),
 			'origin_y' : -0.5,
 			'origin_x' : -0.5,
 			'origin_z' : -0.5,
 			'scale' : (1,1,1)
-		}
-		kwargs.update(kw)
+		})
 		Entity.__init__(self, *args, **kwargs)
 		self.portal = Portal(app, position = self.position)
 
@@ -327,7 +244,6 @@ class Exit(Entity):
 	def randomize(self):
 		x = rdm.uniform(0,0.2)
 		z = rdm.uniform(0,0.2)
-
 		self.portal.anim.x += x
 		self.x += x
 		self.portal.anim.z += z
