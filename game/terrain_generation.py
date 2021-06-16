@@ -5,10 +5,15 @@ from opensimplex import OpenSimplex
 from .constants import TILE_SCALE, RENDER_DISTANCE
 from .entities import Branch, Tree, Exit, Rock, Mushroom, LivingTree, SmallMushroom, SharpRock, Stump, MushroomCircle, Log, StickBall
 
+TERRAIN_Y_MULT = 1.4
+SPAWN_MULT = 2
+
+FB = FOG_BASE = 170
+
 BARREN = 0.075
 BARREN_COLOR = rgb(255,255,103)
-BARREN_FOG_DENSITY = 0
-BARREN_FOG_COLOR = rgb(255,255,255)
+BARREN_FOG_DENSITY = (0,50)
+BARREN_FOG_COLOR = rgb(FB,FB,FB)
 BARREN_FLOOR_COLOR = rgb(255,255,153)
 BARREN_MAP = {
 	0.004 : StickBall,
@@ -20,8 +25,8 @@ BARREN_MAP = {
 
 SCRUBLAND = 0.1
 SCRUB_COLOR = rgb(255,211,0)
-SCRUB_FOG_DENSITY = 0
-SCRUB_FOG_COLOR = rgb(220,220,220)
+SCRUB_FOG_DENSITY = (0,50)
+SCRUB_FOG_COLOR = rgb(FB-10,FB-10,FB-10)
 SCRUB_FLOOR_COLOR = rgb(254,229,102)
 SCRUB_MAP = {
 	0.006 : StickBall,
@@ -36,8 +41,8 @@ SCRUB_MAP = {
 
 LIGHT_FOREST = 0.25
 LIGHT_COLOR = rgb(255,170,1)
-LIGHT_FOG_DENSITY = (0,70)
-LIGHT_FOG_COLOR = rgb(200,200,200)
+LIGHT_FOG_DENSITY = (0,50)
+LIGHT_FOG_COLOR = rgb(FB-20,FB-20,FB-20)
 LIGHT_FLOOR_COLOR = rgb(255,203,101)
 LIGHT_MAP = {
 	0.004 : StickBall,
@@ -53,7 +58,7 @@ LIGHT_MAP = {
 HEAVY_FOREST = 0.35
 HEAVY_COLOR = rgb(255,115,0)
 HEAVY_FOG_DENSITY = (0,50)
-HEAVY_FOG_COLOR = rgb(180,180,180)
+HEAVY_FOG_COLOR = rgb(FB-30,FB-30,FB-30)
 HEAVY_FLOOR_COLOR = rgb(255,172,102)
 HEAVY_MAP = {
 	0.006 : StickBall,
@@ -70,7 +75,7 @@ HEAVY_MAP = {
 BADLANDS = 0.5
 BAD_COLOR = rgb(255,0,0)
 BAD_FOG_DENSITY = (0,30)
-BAD_FOG_COLOR = rgb(160,160,160)
+BAD_FOG_COLOR = rgb(FB-40,FB-40,FB-40)
 BAD_FLOOR_COLOR = rgb(255,103,102)
 BAD_MAP = {
 	0.008 : StickBall,
@@ -88,7 +93,7 @@ MAGIC = 0.6
 MAGIC_COLOR = rgb(205,1,116)
 MAGIC_FLOOR_COLOR = rgb(226,102,172)
 MAGIC_FOG_DENSITY = (0,20)
-MAGIC_FOG_COLOR = rgb(140,140,140)
+MAGIC_FOG_COLOR = rgb(FB-50,FB-50,FB-50)
 MAGIC_MAP = {
 	0.010 : StickBall,
 	0.018: Rock,
@@ -149,7 +154,7 @@ import sys
 
 def get_spawn_from_map(m, val):
 	for k in m.keys():
-		if val < k: return m[k]
+		if (val / SPAWN_MULT) < k: return m[k]
 
 def get_biome_from_biomemap_value(val):
 	for k in BIOME_MAP.keys():
@@ -185,7 +190,7 @@ class TerrainChunk(Entity):
 				xow = x/w
 				zoh = z/h
 
-				y = heightmap[x][z]
+				y = heightmap[x][z] * TERRAIN_Y_MULT
 				vec = Vec3((x/min_dim)+(centering_offset.x), y, (z/min_dim)+centering_offset.y)
 				self.vertices.append(vec)
 				self.uvs.append((xow, zoh))
@@ -264,7 +269,7 @@ class DynamicTerrainLoader:
 		self.halfrender = int(RENDER_DISTANCE / 2)
 		self.seed = seed
 
-		self.num_noises = 30
+		self.num_noises = 20
 		self.noises = []
 		for i in range(self.num_noises):
 			self.noises.append(OpenSimplex(seed=self.seed * (i)).noise2d)
@@ -290,6 +295,7 @@ class DynamicTerrainLoader:
 				density, color = FOG_LEVELS[c.biome]
 				scene.fog_density = density
 				scene.fog_color = color
+				self.app.skybox.setcolor(color)
 				return
 
 	def get_maps(self, chunk_x, chunk_z):
@@ -333,7 +339,7 @@ class DynamicTerrainLoader:
 		if self.current_x == last_x and self.current_z == last_z:
 			return False
 		else:
-			min_x, min_z = self.current_x - self.halfrender + 1, self.current_z - self.halfrender + 1
+			min_x, min_z = self.current_x - self.halfrender, self.current_z - self.halfrender
 			max_x, max_z = self.current_x + self.halfrender, self.current_z + self.halfrender
 			current_chunk_ids = []
 			for x in range(min_x, max_x):
@@ -350,5 +356,4 @@ class DynamicTerrainLoader:
 					except TypeError:
 						pass
 			self.current_chunk_ids = current_chunk_ids
-			sys.stdout.flush()
 			return True

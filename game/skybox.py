@@ -53,3 +53,7 @@ class SkyBox:
 
 	def destroy(self):
 		if self.walls:[destroy(w) for w in self.walls]
+
+	def setcolor(self, color):
+		for w in self.walls:
+			w.color = color

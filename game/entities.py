@@ -20,7 +20,6 @@ class ModelLoader:
 			"branch" : 'branch',
 			"portal" : 'snowgate',
 			"treeshroom" : 'treeshroom',
-			"rock" : "rock3",
 			"mushroom" : "mushroom",
 			'log' : 'log',
 			"mushroomcircle" : "mushroomcircle"
@@ -43,6 +42,8 @@ class ModelLoader:
 		self.models_to_load = [] #Models should be added in order of importance
 		self.loaded_models = []
 
+		self.preload_models()
+
 	def get_tree(self):			return rdm.choice(self.trees)
 	def get_livingtree(self):	return rdm.choice(self.livingtrees)
 	def get_rock(self):			return rdm.choice(self.rocks)
@@ -59,6 +60,21 @@ class ModelLoader:
 	def load_model(self, model, chunk, *args, **kwargs):
 		self.models_to_load.append((model, chunk, args, kwargs))
 
+	def preload_models(self): #Gets rid of loading lag
+		# self.models = {
+		# 	"exit" : 'exit',
+		# 	"branch" : 'branch',
+		# 	"portal" : 'snowgate',
+		# 	"treeshroom" : 'treeshroom',
+		# 	"mushroom" : "mushroom",
+		# 	'log' : 'log',
+		# 	"mushroomcircle" : "mushroomcircle"
+		# }
+		mdls = [self.models[m] for m in self.models.keys()]
+		self.modellists = [self.smallmushrooms, self.trees, self.livingtrees, self.rocks, self.sharprocks, self.stumps, self.stickballs, self.models]
+		for ml in self.modellists:
+			for m in ml: destroy(Entity(model=m))
+
 	def update(self):
 		while self.models_to_load:
 			model, chunk, args, kwargs = self.models_to_load.pop(0)
@@ -73,6 +89,7 @@ class ModelLoader:
 			obj = model(self.app, *args, **kwargs)
 			chunk.objects.append(obj)
 			self.loaded_models.append(obj)
+			break
 
 
 class baseEntity(Entity):
