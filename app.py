@@ -2,16 +2,18 @@ import pathlib
 
 from ursina import *
 from ursina.prefabs.first_person_controller import FirstPersonController
-
+from ursina.shaders.screenspace_shaders import ssao
 from game.constants import *
-from game.terrain_generation import DynamicTerrainLoader
+from game.terrain_generation import DynamicTerrainLoader, BARREN
 from game.entities import ModelLoader
-from game.snow import SnowLoader
+from game.snowmesh import SnowLoader
 from game.skybox import SkyBox
 from game.timer_decorator import timer_dec
 
 window.vsync = False
 window.center_on_screen()
+
+
 
 class App(Ursina):
 	def __init__(self, *args, **kwargs):
@@ -20,26 +22,28 @@ class App(Ursina):
 		self.lasttxt = None # Holder for debug text
 		self.input_map = {'escape' : self.exit}
 
+		self.skybox = SkyBox() #Must be inited before terrain loader
+
 		self.player = FirstPersonController(position=(0.5 * TILE_SCALE, 30, 0.5 * TILE_SCALE))
 		self.player.speed = 40
+		# self.player.camera = ssao.ssao_shader
 
 		self.modelloader = ModelLoader(self)
 		self.modelloader.preload_models()
 
 		self.terrainloader = DynamicTerrainLoader(self)
 		self.terrainloader.update()
-		self.terrainloader.update_fog()
+		self.terrainloader.update_fog(BARREN)
 
-		self.skybox = SkyBox()
-
-		# self.snowloader = SnowLoader(self)
+		self.snowloader = SnowLoader(self)
 		
 		
 	def update(self, dt):
 		self.input_task()
 		# @timer_dec
 		def update_terrain():
-			self.terrainloader.update()
+			if self.terrainloader.update():
+				self.snowloader.update_snowclouds()
 		# @timer_dec
 		def update_modelloader():
 			self.modelloader.update()
@@ -58,7 +62,7 @@ class App(Ursina):
 				position = (0.5,0.5)
 			)
 
-		# self.snowloader.update()
+		self.snowloader.update()
 		self.frame += 1
 		sys.stdout.flush() #Make sure stuff gets printed each frame
 

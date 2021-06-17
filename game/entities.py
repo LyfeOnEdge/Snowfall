@@ -56,6 +56,7 @@ class ModelLoader:
 		else: raise ValueError(f"Failed to find model for {name}")
 		
 	def load_model(self, model, chunk, *args, **kwargs):
+		# kwargs.update({'shader' : })
 		self.models_to_load.append((model, chunk, args, kwargs))
 
 	def preload_models(self): #Gets rid of loading lag

@@ -4,6 +4,7 @@ from opensimplex import OpenSimplex
 
 from .constants import TILE_SCALE, RENDER_DISTANCE
 from .entities import Branch, Tree, Exit, Rock, Mushroom, LivingTree, SmallMushroom, SharpRock, Stump, MushroomCircle, Log, StickBall
+from .tools import get_chunk_numerals_by_position, get_chunk_id
 
 TERRAIN_Y_MULT = 1.4
 SPAWN_MULT = 2
@@ -247,14 +248,10 @@ class TerrainChunk(Entity):
 
 #TODO: EXPERIMENT WITH MOVING EXISTING CLOUDS / CHUNKS / ETC
 
-def get_chunk_numerals_by_position(position):
-	return int(position[0]/TILE_SCALE), int(position[2]/TILE_SCALE)
 
-def get_chunk_id(chunk_x, chunk_z):
-	return f"{chunk_x}x{chunk_z}"
 
 class DynamicTerrainLoader:
-	def __init__(self, app, seed = 5):
+	def __init__(self, app, seed = 9):
 		self.app = app
 		self.chunks = []
 		self.chunks_to_load = []
@@ -288,16 +285,22 @@ class DynamicTerrainLoader:
 
 		self.s = TILE_SCALE
 
-	def update_fog(self):
-		i = get_chunk_id(self.current_x, self.current_z)
-		for c in self.chunks:
-			if i == c.chunk_id:
-				self.biome = BIOME_NAME_MAP[c.biome]
-				density, color = FOG_LEVELS[c.biome]
-				scene.fog_density = density
-				scene.fog_color = color
-				self.app.skybox.setcolor(color)
-				return
+	def update_fog(self, biome = None):
+		if not biome:
+			i = get_chunk_id(self.current_x, self.current_z)
+			for c in self.chunks:
+				if i == c.chunk_id:
+					self.biome = BIOME_NAME_MAP[c.biome]
+					density, color = FOG_LEVELS[c.biome]
+					scene.fog_density = density
+					scene.fog_color = color
+					self.app.skybox.setcolor(color)
+		else:
+			self.biome = BIOME_NAME_MAP[biome]
+			density, color = FOG_LEVELS[biome]
+			scene.fog_density = density
+			scene.fog_color = color
+			self.app.skybox.setcolor(color)
 
 	def get_maps(self, chunk_x, chunk_z):
 		scale = 4 #How scaled the noise is
@@ -329,10 +332,13 @@ class DynamicTerrainLoader:
 		# self.current_chunk_ids.append(chunk.chunk_id)
 
 	def update(self):
+		ret = False
 		if self.update_chunks_rendered():
 			self.update_fog()
+			ret = True
 		if self.chunks_to_load:
 			self._load_new_chunk(self.chunks_to_load.pop(0))
+		return ret
 
 	def update_chunks_rendered(self, force_load = False):
 		last_x, last_z = self.current_x, self.current_z
