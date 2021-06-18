@@ -6,7 +6,7 @@ from ursina.shaders.screenspace_shaders import ssao
 from game.constants import *
 from game.terrain_generation import DynamicTerrainLoader, BARREN
 from game.entities import ModelLoader
-from game.snowmesh import SnowLoader
+from game.snowmesh import snowcloud
 from game.skybox import SkyBox
 from game.timer_decorator import timer_dec
 
@@ -26,7 +26,7 @@ class App(Ursina):
 
 		self.player = FirstPersonController(position=(0.5 * TILE_SCALE, 30, 0.5 * TILE_SCALE))
 		self.player.speed = 40
-		# self.player.camera = ssao.ssao_shader
+		self.player.camera = ssao.ssao_shader
 
 		self.modelloader = ModelLoader(self)
 		self.modelloader.preload_models()
@@ -35,26 +35,19 @@ class App(Ursina):
 		self.terrainloader.update()
 		self.terrainloader.update_fog(BARREN)
 
-		self.snowloader = SnowLoader(self)
-		
+		self.snowcloud = snowcloud()
+		self.preload_snow()
+
+	def preload_snow(self):
+		for j in range(3000): self.snowcloud.advance(0,0) #Let it run a while
 		
 	def update(self, dt):
 		self.input_task()
-		# @timer_dec
-		def update_terrain():
-			if self.terrainloader.update():
-				self.snowloader.update_snowclouds()
-		# @timer_dec
-		def update_modelloader():
-			self.modelloader.update()
-		# @timer_dec
-		def update_skybox():
-			self.skybox.update(self.terrainloader.current_x, self.terrainloader.current_z)
-		update_terrain()
-		update_modelloader()
-		update_skybox()
-
-		if self.player.y < -300: self.player.y = 15*TILE_SCALE #Reset player position
+		self.terrainloader.update()
+		self.modelloader.update()
+		self.skybox.update(self.terrainloader.current_x, self.terrainloader.current_z)
+		self.snowcloud.advance(self.terrainloader.current_x, self.terrainloader.current_z)
+		if self.player.y < -300: self.player.y = 5*TILE_SCALE #Reset player position
 		x,y,z = self.player.position
 		if self.lasttxt: destroy(self.lasttxt)
 		self.lasttxt = Text(
@@ -62,7 +55,7 @@ class App(Ursina):
 				position = (0.5,0.5)
 			)
 
-		self.snowloader.update()
+		
 		self.frame += 1
 		sys.stdout.flush() #Make sure stuff gets printed each frame
 

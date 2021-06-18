@@ -6,7 +6,7 @@ from .constants import TILE_SCALE, RENDER_DISTANCE
 from .entities import Branch, Tree, Exit, Rock, Mushroom, LivingTree, SmallMushroom, SharpRock, Stump, MushroomCircle, Log, StickBall
 from .tools import get_chunk_numerals_by_position, get_chunk_id
 
-TERRAIN_Y_MULT = 1.4
+TERRAIN_Y_MULT = 1.7
 SPAWN_MULT = 2
 
 FB = FOG_BASE = 170
@@ -267,7 +267,7 @@ class DynamicTerrainLoader:
 		self.halfrender = int(RENDER_DISTANCE / 2)
 		self.seed = seed
 
-		self.num_noises = 20
+		self.num_noises = 15
 		self.noises = []
 		for i in range(self.num_noises):
 			self.noises.append(OpenSimplex(seed=self.seed * (i)).noise2d)
