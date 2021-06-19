@@ -2,7 +2,7 @@ import pathlib
 
 from ursina import *
 from ursina.prefabs.first_person_controller import FirstPersonController
-from ursina.shaders.screenspace_shaders import ssao
+from shaders import ssao
 from game.constants import *
 from game.terrain_generation import DynamicTerrainLoader, BARREN
 from game.entities import ModelLoader
@@ -25,7 +25,7 @@ class App(Ursina):
 		self.skybox = SkyBox() #Must be inited before terrain loader
 
 		self.player = FirstPersonController(position=(0.5 * TILE_SCALE, 30, 0.5 * TILE_SCALE))
-		self.player.speed = 40
+		self.player.speed = 10
 		self.player.camera = ssao.ssao_shader
 
 		self.modelloader = ModelLoader(self)

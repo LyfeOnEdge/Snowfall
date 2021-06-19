@@ -11,6 +11,22 @@ SPAWN_MULT = 2
 
 FB = FOG_BASE = 170
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 BARREN = 0.075
 BARREN_COLOR = rgb(255,255,103)
 BARREN_FOG_DENSITY = (0,50)
