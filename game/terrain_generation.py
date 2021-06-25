@@ -1,173 +1,15 @@
-import random
+import sys, json, random
 from ursina import *
 from opensimplex import OpenSimplex
+from numpy import asarray, linspace, uint8
 
-from .constants import TILE_SCALE, RENDER_DISTANCE
+from .constants import *
 from .entities import Branch, Tree, Exit, Rock, Mushroom, LivingTree, SmallMushroom, SharpRock, Stump, MushroomCircle, Log, StickBall
 from .tools import get_chunk_numerals_by_position, get_chunk_id
 
-TERRAIN_Y_MULT = 1.7
-SPAWN_MULT = 2
-
-FB = FOG_BASE = 170
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-BARREN = 0.075
-BARREN_COLOR = rgb(255,255,103)
-BARREN_FOG_DENSITY = (0,50)
-BARREN_FOG_COLOR = rgb(FB,FB,FB)
-BARREN_FLOOR_COLOR = rgb(255,255,153)
-BARREN_MAP = {
-	0.004 : StickBall,
-	0.016 : SharpRock,
-	0.036 : Rock,
-	0.085 : Branch,
-	0.087 : Tree,
-}
-
-SCRUBLAND = 0.1
-SCRUB_COLOR = rgb(255,211,0)
-SCRUB_FOG_DENSITY = (0,50)
-SCRUB_FOG_COLOR = rgb(FB-10,FB-10,FB-10)
-SCRUB_FLOOR_COLOR = rgb(254,229,102)
-SCRUB_MAP = {
-	0.006 : StickBall,
-	0.009 : SharpRock,
-	0.020 : Log,
-	0.021 : SmallMushroom,
-	0.020 : Stump,
-	0.021 : Log,
-	0.025 : Branch,
-	0.075 : Tree,
-}
-
-LIGHT_FOREST = 0.25
-LIGHT_COLOR = rgb(255,170,1)
-LIGHT_FOG_DENSITY = (0,50)
-LIGHT_FOG_COLOR = rgb(FB-20,FB-20,FB-20)
-LIGHT_FLOOR_COLOR = rgb(255,203,101)
-LIGHT_MAP = {
-	0.004 : StickBall,
-	0.014 : Rock,
-	0.024 : SharpRock,
-	0.036 : Log,
-	0.046 : SmallMushroom,
-	0.057 : Stump,
-	0.072 : Branch,
-	0.154 : Tree,
-}
-
-HEAVY_FOREST = 0.35
-HEAVY_COLOR = rgb(255,115,0)
-HEAVY_FOG_DENSITY = (0,50)
-HEAVY_FOG_COLOR = rgb(FB-30,FB-30,FB-30)
-HEAVY_FLOOR_COLOR = rgb(255,172,102)
-HEAVY_MAP = {
-	0.006 : StickBall,
-	0.014 : Rock,
-	0.030 : SharpRock,
-	0.045 : Log,
-	0.054 : SmallMushroom,
-	0.062 : Mushroom,
-	0.068 : Stump,
-	0.080 : Branch,
-	0.176 : Tree,
-}
-
-BADLANDS = 0.5
-BAD_COLOR = rgb(255,0,0)
-BAD_FOG_DENSITY = (0,30)
-BAD_FOG_COLOR = rgb(FB-40,FB-40,FB-40)
-BAD_FLOOR_COLOR = rgb(255,103,102)
-BAD_MAP = {
-	0.008 : StickBall,
-	0.014 : Rock,
-	0.030 : SharpRock,
-	0.050 : Log,
-	0.056 : SmallMushroom,
-	0.064 : Mushroom,
-	0.076 : Stump,
-	0.083 : Branch,
-	0.198 : Tree,
-}
-
-MAGIC = 0.6
-MAGIC_COLOR = rgb(205,1,116)
-MAGIC_FLOOR_COLOR = rgb(226,102,172)
-MAGIC_FOG_DENSITY = (0,20)
-MAGIC_FOG_COLOR = rgb(FB-50,FB-50,FB-50)
-MAGIC_MAP = {
-	0.010 : StickBall,
-	0.018: Rock,
-	0.036 : SharpRock,
-	0.054 : Log,
-	0.064 : Mushroom,
-	0.070 : Stump,
-	0.074 : MushroomCircle,
-	0.088 : Branch,
-	0.170 : Tree,
-	0.2 : Exit,
-}
-
-
-BIOME_MAP = {
-	BARREN : (BARREN_COLOR, BARREN_MAP),
-	SCRUBLAND : (SCRUB_COLOR, SCRUB_MAP),
-	LIGHT_FOREST : (LIGHT_COLOR, LIGHT_MAP),
-	HEAVY_FOREST : (HEAVY_COLOR, HEAVY_MAP),
-	BADLANDS : (BAD_COLOR, BAD_MAP),
-	MAGIC : (MAGIC_COLOR, MAGIC_MAP)
-}
-
-BIOME_NAME_MAP = {
-	BARREN : "Barren",
-	SCRUBLAND : "Scrubland",
-	LIGHT_FOREST : "Light Forest",
-	HEAVY_FOREST : "Heavy Forest",
-	BADLANDS : "Badlands",
-	MAGIC : "Magic"
-}
-
-TERRAIN_COLOR = {
-	BARREN : BARREN_FLOOR_COLOR,
-	SCRUBLAND : SCRUB_FLOOR_COLOR,
-	LIGHT_FOREST : LIGHT_FLOOR_COLOR,
-	HEAVY_FOREST : HEAVY_FLOOR_COLOR,
-	BADLANDS : BAD_FLOOR_COLOR,
-	MAGIC :	MAGIC_FLOOR_COLOR,
-}
-
-			# scene.fog_density = (1,40)
-		# scene.fog_color = color.rgb(180,180,180)
-
-FOG_LEVELS = {
-	BARREN : (BARREN_FOG_DENSITY , BARREN_FOG_COLOR),
-	SCRUBLAND : (SCRUB_FOG_DENSITY , SCRUB_FOG_COLOR),
-	LIGHT_FOREST : (LIGHT_FOG_DENSITY , LIGHT_FOG_COLOR),
-	HEAVY_FOREST : (HEAVY_FOG_DENSITY , HEAVY_FOG_COLOR),
-	BADLANDS : (BAD_FOG_DENSITY , BAD_FOG_COLOR),
-	MAGIC :	(MAGIC_FOG_DENSITY , MAGIC_FOG_COLOR),
-}
-
-from numpy import asarray, linspace
-import json
-
-import sys
 
 def get_spawn_from_map(m, val):
 	for k in m.keys():
@@ -276,11 +118,15 @@ class DynamicTerrainLoader:
 
 		self.y_scale = 1
 
+		self.target_fog_density = 0
+		self.target_fog_color = rgb(200,200,200)
+		self.target_skybox_color = rgb(200,200,255)
+		self.current_fog = 0
+
 		self.current_x = None
 		self.current_z = None
 		self.current_chunk_ids = []
-		# self.halfrender = int(RENDER_DISTANCE / 2)
-		self.halfrender = int(RENDER_DISTANCE / 2)
+		self.halfrender = int(BARREN_RENDER_RANGE / 2)
 		self.seed = seed
 
 		self.num_noises = 15
@@ -291,7 +137,7 @@ class DynamicTerrainLoader:
 		self.spawn_noise = OpenSimplex(seed=self.seed*7*13).noise2d #7 and 13 just magic
 		self.biome = None
 
-		self.num_biome_noises = 2
+		self.num_biome_noises = 3
 		self.biome_noises = []
 		base_biome_val = self.seed*13*17
 		for i in range(self.num_biome_noises):
@@ -301,22 +147,62 @@ class DynamicTerrainLoader:
 
 		self.s = TILE_SCALE
 
-	def update_fog(self, biome = None):
-		if not biome:
-			i = get_chunk_id(self.current_x, self.current_z)
-			for c in self.chunks:
-				if i == c.chunk_id:
-					self.biome = BIOME_NAME_MAP[c.biome]
-					density, color = FOG_LEVELS[c.biome]
-					scene.fog_density = density
-					scene.fog_color = color
-					self.app.skybox.setcolor(color)
-		else:
-			self.biome = BIOME_NAME_MAP[biome]
-			density, color = FOG_LEVELS[biome]
-			scene.fog_density = density
-			scene.fog_color = color
-			self.app.skybox.setcolor(color)
+	# 	self.make_map()
+
+	# def make_map(self):
+	# 	from PIL import Image
+
+	# 	chunk_x = 0
+	# 	chunk_z = 0
+	# 	scale = 4 #How scaled the noise is
+	# 	steps = 4
+	# 	biomescale = 120 #How scaled the biomes are
+	# 	spawnmap, biomemap = [], []
+	# 	val = 500
+	# 	for i in linspace(-val, val, steps * val,endpoint=True):
+	# 		scaled_i = i/scale
+	# 		row, spawnrow, biomerow = [], [], []
+	# 		for	j in linspace(-val, val, steps * val,endpoint =True):
+	# 			scaled_j = j/scale
+	# 			# row.append(sum(n(scaled_i,scaled_j) for n in self.noises)/(self.num_noises) * self.y_scale)
+	# 			spawnrow.append(self.spawn_noise(scaled_i, scaled_j))
+	# 			biomerow.append(abs(sum([n((chunk_x + scaled_i)/biomescale, (chunk_z + scaled_j)/biomescale) for n in self.biome_noises])/(self.num_biome_noises)))
+	# 		# heightmap.append(row)
+	# 		spawnmap.append(spawnrow)
+	# 		biomemap.append(biomerow)
+
+		# def make_biome_map():
+		# 	biome_map = [[[0,0,0] for i in range(len(biomemap))] for i in range(len(biomemap[0]))]
+			
+		# 	for x in range(len(biomemap)):
+		# 		for z in range(len(biomemap[0])):
+		# 			val = biomemap[x][z]
+		# 			for k in BIOME_MAP.keys():
+		# 				if val < k:
+		# 					break
+		# 			color = MAP_COLOR[k]
+		# 			biome_map[x][z] = color
+
+		# 	biome_map = asarray(biome_map)
+		# 	im = Image.fromarray(uint8(biome_map))
+		# 	im.save("map.png")
+		
+		# make_biome_map()
+
+
+
+	def update_fog_and_snow(self):
+		i = get_chunk_id(self.current_x, self.current_z)
+		for c in self.chunks:
+			if i == c.chunk_id:
+				self.biome = c.biome
+				density, color, snow, render_distance, skybox_color = EFFECT_LEVELS[c.biome]
+				self.app.render_distance = render_distance
+				self.app.snowcloud.update_biome(c.biome)
+				self.target_fog_color = color
+				self.target_fog_density = density
+				self.target_skybox_color = skybox_color
+				break
 
 	def get_maps(self, chunk_x, chunk_z):
 		scale = 4 #How scaled the noise is
@@ -330,7 +216,7 @@ class DynamicTerrainLoader:
 				scaled_j = j/scale
 				row.append(sum(n(scaled_i,scaled_j) for n in self.noises)/(self.num_noises) * self.y_scale)
 				spawnrow.append(self.spawn_noise(scaled_i, scaled_j))
-				biomerow.append(abs(sum(n((chunk_x + scaled_i)/biomescale, (chunk_z + scaled_j)/biomescale) for n in self.biome_noises)/(self.num_biome_noises)))
+				biomerow.append(sum(n((chunk_x + scaled_i)/biomescale, (chunk_z + scaled_j)/biomescale) for n in self.biome_noises)/(self.num_biome_noises))
 			heightmap.append(row)
 			spawnmap.append(spawnrow)
 			biomemap.append(biomerow)
@@ -344,26 +230,100 @@ class DynamicTerrainLoader:
 		heightmap, spawnmap, biomemap = self.get_maps(chunk_x, chunk_z)
 		chunk = TerrainChunk(self.app, self.seed, chunk_x, chunk_z, heightmap, spawnmap, biomemap)
 		self.chunks.append(chunk)
-		# print(f"Loaded Chunk {chunk.chunk_id}")
-		# self.current_chunk_ids.append(chunk.chunk_id)
 
 	def update(self):
 		ret = False
 		if self.update_chunks_rendered():
-			self.update_fog()
+			self.update_fog_and_snow()
 			ret = True
 		if self.chunks_to_load:
 			self._load_new_chunk(self.chunks_to_load.pop(0))
+
+		if not self.app.frame % 3: #Every 4th frame update fog
+			if not scene.fog_density == self.target_fog_density:
+				if isinstance(self.target_fog_density, int):
+						if isinstance(scene.fog_density, int):
+							if scene.fog_density < self.target_fog_density:
+								scene.fog_density = scene.fog_density + 1
+							else:
+								scene.fog_density -= scene.fog_density - 1
+						else:
+							if self.target_fog_density == 0:
+								a,b = scene.fog_density
+								a += 1
+								b += 1
+								scene.fog_density = (a,b)
+								if a > 1000 and b > 1000:
+									scene.fog_density = self.target_fog_density
+				else: #Target is tuple
+					a,b = self.target_fog_density
+					if isinstance(scene.fog_density, int):
+						scene.fog_density = (500, 800)
+					else:
+						c,d = scene.fog_density
+						if 	 a<c:c-=1
+						elif a>c:c+=1
+						if 	 b<d:d-=1
+						elif b>d:d+=1	
+						scene.fog_density = (c,d)
+
+		# scene.fog_color = self.target_fog_color
+
+		r,g,b,a = scene.fog_color
+		r2,g2,b2,a2 = self.target_fog_color
+		weather_different = False
+		for s,t in zip([r,g,b,a],[r2,g2,b2,a2]):
+			if not s == t:
+				weather_different = True
+				break
+		if weather_different:		
+			if 	 r<r2:r+=0.001
+			elif r>r2:r-=0.001
+			if 	 g<g2:g+=0.001
+			elif g>g2:g-=0.001
+			if 	 b<b2:b+=0.001
+			elif b>b2:b-=0.001
+			if   a<a2:a+=0.001
+			elif a>a2:a-=0.001
+			if abs(r-r2)<0.001:r=r2
+			if abs(g-g2)<0.001:g=g2
+			if abs(b-b2)<0.001:b=b2
+			c = Vec4(r,g,b,1)
+			scene.fog_color = c
+
+		r,g,b,a = self.app.skybox.color
+		r2,g2,b2,a2 = self.target_skybox_color
+		weather_different = False
+		for s,t in zip([r,g,b,a],[r2,g2,b2,a2]):
+			if not s == t:
+				weather_different = True
+				break
+		if weather_different:		
+			if 	 r<r2:r+=0.001
+			elif r>r2:r-=0.001
+			if 	 g<g2:g+=0.001
+			elif g>g2:g-=0.001
+			if 	 b<b2:b+=0.001
+			elif b>b2:b-=0.001
+			if   a<a2:a+=0.001
+			elif a>a2:a-=0.001
+			if abs(r-r2)<0.001:r=r2
+			if abs(g-g2)<0.001:g=g2
+			if abs(b-b2)<0.001:b=b2
+			c = Vec4(r,g,b,1)
+			self.app.skybox.setcolor(c)
+
 		return ret
 
 	def update_chunks_rendered(self, force_load = False):
 		last_x, last_z = self.current_x, self.current_z
 		self.current_x, self.current_z = get_chunk_numerals_by_position(self.app.player.position)
-		if self.current_x == last_x and self.current_z == last_z:
+		if self.current_x == last_x and self.current_z == last_z and self.biome:
 			return False
 		else:
-			min_x, min_z = self.current_x - self.halfrender, self.current_z - self.halfrender
-			max_x, max_z = self.current_x + self.halfrender, self.current_z + self.halfrender
+			halfrender = int(self.app.render_distance / 2)
+			min_x, min_z = self.current_x - halfrender, self.current_z - halfrender
+			max_x, max_z = self.current_x + halfrender, self.current_z + halfrender
 			current_chunk_ids = []
 			for x in range(min_x, max_x):
 				for z in range(min_z, max_z):

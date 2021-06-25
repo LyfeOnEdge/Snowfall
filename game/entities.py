@@ -87,9 +87,9 @@ class baseEntity(Entity):
 	def randomize(self):
 		s = rdm.uniform(0.7, 1.4)
 		self.scale = (s*rdm.uniform(0.8, 1.2),s*rdm.uniform(0.8, 1.2),s*rdm.uniform(0.8, 1.2))
-		self.x += rdm.uniform(-0.2, 0.2)
+		self.x += rdm.uniform(-0.4, 0.4)
 		self.y += rdm.uniform(-0.6, -0.2)
-		self.z += rdm.uniform(-0.2, 0.2)
+		self.z += rdm.uniform(-0.4, 0.4)
 		self.rotation = (rdm.randrange(0,7),rdm.randrange(0,360),rdm.randrange(0,7))
 
 class SmallMushroom(baseEntity):

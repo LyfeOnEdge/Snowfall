@@ -4,7 +4,7 @@ from .constants import *
 from .timer_decorator import timer_dec
 from .tools import get_chunk_id
 
-SNOWRENDERDISTANCE = 4.5 * TILE_SCALE
+
 
 class snowcloud(Entity):
 	# __slots__ = ["size", "pos", "rate", "x_drift", "x_drift_radius",\
@@ -14,20 +14,22 @@ class snowcloud(Entity):
 	# 	"x", "y", "z"
 	# 	]
 	def __init__(self,
-			size : tuple = (SNOWRENDERDISTANCE,TILE_SCALE,SNOWRENDERDISTANCE),
+			app,
+			size : tuple = (BARREN_RENDER_RANGE * TILE_SCALE,TILE_SCALE,BARREN_RENDER_RANGE * TILE_SCALE),
 			pos : tuple = (0,0,0),
 			# rate : float = .4,
-			rate : float = .3,
-			x_drift = 5,
-			x_drift_radius = 0.3,
-			y_drift = 5,
+			rate : float = 0,
+			x_drift = 7,
+			x_drift_radius = 0.15,
+			y_drift = 2,
 			y_drift_radius = 0.15,
-			z_drift = 5,
-			z_drift_radius = 0.3,
+			z_drift = 7,
+			z_drift_radius = 0.15,
 			positions = None,
 			chunk_x = 0,
 			chunk_z = 0,
 	):
+		self.app = app
 		self.chunk_x, self.chunk_z = chunk_x, chunk_z
 		self.width, self.height, self.depth = size
 		self.x, self.y, self.z = pos
@@ -52,22 +54,31 @@ class snowcloud(Entity):
 			x, y, z, g = p
 			self.flakelist.append([x+self.offset_x,y,z+self.offset_z,g])
 
+	def update_biome(self, biome):
+		self.rate = EFFECT_LEVELS[biome][2]
+		size = EFFECT_LEVELS[biome][3] * TILE_SCALE
+		self.width, self.height, self.depth = size, size / 2, size
+
 	def advance(self, chunk_x, chunk_z):
 		X,Y,Z,GRAV = 0,1,2,3
 		dx, dz = 0,0
 		if not chunk_x == self.chunk_x or not chunk_z == self.chunk_z:
 			dx, dz = chunk_x - self.chunk_x, chunk_z - self.chunk_z
 		self.chunk_x, self.chunk_z = chunk_x, chunk_z
-		self.offset_x = self.chunk_x * TILE_SCALE - 0.5 * SNOWRENDERDISTANCE
-		self.offset_z = self.chunk_z * TILE_SCALE - 0.5 * SNOWRENDERDISTANCE
+		self.offset_x = self.chunk_x * TILE_SCALE - 0.5 * (self.app.render_distance*TILE_SCALE)
+		self.offset_z = self.chunk_z * TILE_SCALE - 0.5 * (self.app.render_distance*TILE_SCALE)
 		if self.flakelist:
 			for f in list(self.flakelist):
 				f[Y] -= f[GRAV]
 				if f[Y] < -0.5*self.height: self.flakelist.remove(f)
-				if f[X] < self.offset_x: 						f[X] = f[X] + SNOWRENDERDISTANCE
-				elif f[X] > self.offset_x + SNOWRENDERDISTANCE: f[X] = f[X] - SNOWRENDERDISTANCE
-				if f[Z] < self.offset_z: 						f[Z] = f[Z] + SNOWRENDERDISTANCE
-				elif f[Z] > self.offset_z + SNOWRENDERDISTANCE: f[Z] = f[Z] - SNOWRENDERDISTANCE
+				if f[X] < self.offset_x:
+					f[X] = f[X] + (self.app.render_distance*TILE_SCALE)
+				elif f[X] > self.offset_x + (self.app.render_distance*TILE_SCALE):
+					f[X] = f[X] - (self.app.render_distance*TILE_SCALE)
+				if f[Z] < self.offset_z:
+					f[Z] = f[Z] + (self.app.render_distance*TILE_SCALE)
+				elif f[Z] > self.offset_z + (self.app.render_distance*TILE_SCALE): 
+					f[Z] = f[Z] - (self.app.render_distance*TILE_SCALE)
 
 
 
