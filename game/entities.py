@@ -2,9 +2,9 @@ import random as rdm
 from numpy import asarray
 from ursina import *
 from ursina.prefabs.first_person_controller import FirstPersonController
-from perlin_noise import PerlinNoise
 from .constants import *
 from .timer_decorator import timer_dec
+from .items import TEST_ITEMS
 
 def get_chunk_numerals_by_position(position):
 	return int(position[0]/TILE_SCALE), int(position[2]/TILE_SCALE)
@@ -38,6 +38,9 @@ class ModelLoader:
 		for i in range(4): self.stumps.append(f"stump{i}")
 		self.stickballs = []
 		for i in range(5): self.stickballs.append(f"stickball{i}")
+		self.crystals = []
+		for i in range(8): self.crystals.append(f"crystal{i}")
+		self.chests = ["item_chest"]
 
 		self.models_to_load = [] #Models should be added in order of importance
 		self.loaded_models = []
@@ -49,6 +52,8 @@ class ModelLoader:
 	def get_stump(self):		return rdm.choice(self.stumps)
 	def get_smallmushroom(self):return rdm.choice(self.smallmushrooms)
 	def get_stickball(self):	return rdm.choice(self.stickballs)
+	def get_crystal(self):		return rdm.choice(self.crystals)
+	def get_chest(self):		return rdm.choice(self.chests)
 
 	def get(self, name):
 		m = self.models.get(name)
@@ -59,16 +64,25 @@ class ModelLoader:
 		# kwargs.update({'shader' : })
 		self.models_to_load.append((model, chunk, args, kwargs))
 
+	def load_chest(self, lootseed, chunk, *args, **kwargs):
+		x,y,z = kwargs.get('position')
+		items = TEST_ITEMS
+		obj = Chest(self.app,items, *args, **kwargs)
+		chunk.objects.append(obj)
+		self.loaded_models.append(obj)
+
+
 	def preload_models(self): #Gets rid of loading lag
 		mdls = [self.models[m] for m in self.models.keys()]
-		self.modellists = [self.smallmushrooms, self.trees, self.livingtrees, self.rocks, self.sharprocks, self.stumps, self.stickballs, self.models]
+		self.modellists = [self.smallmushrooms, self.trees, self.livingtrees, self.rocks, self.sharprocks, self.stumps, self.stickballs, self.crystals, self.models]
 		for ml in self.modellists:
 			for m in ml: destroy(Entity(model=m))
 
 	def update(self):
+		models_to_load = []
 		while self.models_to_load:
 			model, chunk, args, kwargs = self.models_to_load.pop(0)
-			if not chunk.active: continue
+			if not chunk.active: continue #Chunk is unloaded
 			x,y,z = kwargs.get('position')
 			hit_info = None
 			escape = False
@@ -77,7 +91,6 @@ class ModelLoader:
 			chunk.objects.append(obj)
 			self.loaded_models.append(obj)
 			break
-
 
 class baseEntity(Entity):
 	def __init__(self, *args, **kwargs):
@@ -91,6 +104,57 @@ class baseEntity(Entity):
 		self.y += rdm.uniform(-0.6, -0.2)
 		self.z += rdm.uniform(-0.4, 0.4)
 		self.rotation = (rdm.randrange(0,7),rdm.randrange(0,360),rdm.randrange(0,7))
+
+
+
+
+
+
+class Voxel(Button):
+    def __init__(self, position=(0,0,0)):
+        super().__init__(
+            parent = scene,
+            position = position,
+            model = 'cube',
+            origin_y = .5,
+            texture = 'white_cube',
+            color = color.color(0, 0, random.uniform(.9, 1.0)),
+            highlight_color = color.lime,
+        )
+
+
+    def input(self, key):
+        if self.hovered:
+            if key == 'left mouse down':
+                voxel = Voxel(position=self.position + mouse.normal)
+
+            if key == 'right mouse down':
+                destroy(self)
+
+
+
+
+class Chest(Button):
+	def __init__(self, app, items, *args, **kwargs):
+		mesh = app.modelloader.get_chest()
+		kwargs.update({'model':mesh,'texture':'brick', 'origin_y':-0.5,'origin_x':-0.5,'origin_z':-0.5,'parent' : scene,})		 
+		Button.__init__(self, *args, **kwargs)
+		self.collider = mesh
+		self.disabled = False
+		self.items = items
+		self.randomize()
+		def on_click():
+			app.ui.show_chest(self)
+
+		self.on_click = on_click
+
+	def randomize(self):
+		s = rdm.uniform(0.7, 1.4)
+		self.x += rdm.uniform(-0.4, 0.4)
+		self.y += rdm.uniform(-0.6, -0.2)
+		self.z += rdm.uniform(-0.4, 0.4)
+		self.rotation = (rdm.randrange(0,7),rdm.randrange(0,360),rdm.randrange(0,7))
+
 
 class SmallMushroom(baseEntity):
 	def __init__(self, app,  *args, **kwargs):
@@ -128,6 +192,15 @@ class StickBall(baseEntity):
 		kwargs.update({'model':mesh,'texture':'brick'})
 		baseEntity.__init__(self, *args, **kwargs)
 		self.randomize()
+
+class Crystal(baseEntity):
+	def __init__(self, app,  *args, **kwargs):
+		mesh = app.modelloader.get_crystal()
+		kwargs.update({'model':mesh,'texture':'ice_texture'})
+		baseEntity.__init__(self, *args, **kwargs)
+		self.randomize()
+		self.alpha = (0.4)
+		self.y += 0.1
 
 
 class Stump(baseEntity):

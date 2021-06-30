@@ -1,8 +1,9 @@
 import sys, json, random
 from ursina import *
+from ursina.color import rgba
 from opensimplex import OpenSimplex
 from numpy import asarray, linspace, uint8
-
+from PIL import Image
 from .constants import *
 from .entities import Branch, Tree, Exit, Rock, Mushroom, LivingTree, SmallMushroom, SharpRock, Stump, MushroomCircle, Log, StickBall
 from .tools import get_chunk_numerals_by_position, get_chunk_id
@@ -15,15 +16,8 @@ def get_spawn_from_map(m, val):
 	for k in m.keys():
 		if (val / SPAWN_MULT) < k: return m[k]
 
-def get_biome_from_biomemap_value(val):
-	for k in BIOME_MAP.keys():
-		if val < k:
-			return BIOME_MAP[k], k
-	return BIOME_MAP[BARREN], BARREN
-
-
 class TerrainChunk(Entity):
-	def __init__(self, app, seed, chunk_x, chunk_z, heightmap, spawnmap, biomemap):
+	def __init__(self, app, seed, chunk_x, chunk_z, heightmap, spawnmap, biomemap, secondary_biomemap, affinitymap, chestmap):
 		self.chunk_x = chunk_x
 		self.chunk_z = chunk_z
 		self.chunk_id = get_chunk_id(chunk_x, chunk_z)
@@ -42,6 +36,36 @@ class TerrainChunk(Entity):
 		centering_offset = Vec2(0, 0)
 
 		min_dim = min(w, h)
+
+
+		mp = int(len(heightmap)/2)
+		if secondary_biomemap[mp][mp] > 0:
+			current_map = BIOME_SPAWN_MAP
+		else:
+			current_map = SECONDARY_BIOME_SPAWN_MAP
+
+		val = biomemap[mp][mp]
+		for k in current_map.keys():
+			if val < k:
+				break
+		self.biome = current_map[k]
+		r,g,b,a = TERRAIN_COLOR[self.biome]
+		r,g,b,a = r*255,g*255,b*255,a*255
+		
+
+		val = affinitymap[mp][mp]
+		for k in AFFINITY_MAP.keys():
+			if val < k:
+				break
+		
+		r2,g2,b2 = 0,0,0
+		if not AFFINITY_MAP[k][0] == (0,0,0):
+			r2,g2,b2 = AFFINITY_MAP[k][0]
+			r=max(min(r+r2,255),0)
+			g=max(min(g+g2,255),0)
+			b=max(min(b+b2,255),0)
+
+
 
 		i = 0
 		for z in range(lsm):
@@ -65,33 +89,42 @@ class TerrainChunk(Entity):
 				i += 1
 
 				if x < lsm2 and z < lsm2:
-					random.seed(self.spawnmap[z][x])
+					random.seed(self.spawnmap[x][z])
 					spawnval = random.uniform(0,1)
-					m, b = get_biome_from_biomemap_value(biomemap[z][x])
-					spawn = get_spawn_from_map(m[1], spawnval)
+					spawn = get_spawn_from_map(BIOME_MAP[self.biome][1], spawnval)
+					r,g,b,a = BIOME_MAP[self.biome][0]
+					r,g,b = int(r*255),int(g*255),int(b*255)
+					r=max(min(r+r2,255),0)
+					g=max(min(g+g2,255),0)
+					b=max(min(b+b2,255),0)
 					if spawn:
 						app.modelloader.load_model(spawn,
 							self,
 							position = vec * TILE_SCALE + Vec3(chunk_x, 0, chunk_z) * TILE_SCALE - Vec3(0,0.5,0),
-							color = BIOME_MAP[b][0]
+							color = rgb(r,g,b)
 						)
+					else:
+						random.seed(chestmap[x][z])
+						spawnval = random.uniform(0,1)
+						if spawnval < 0.02:
+							app.modelloader.load_chest(chestmap[x][z], #Loot seed
+								self,
+								position = vec * TILE_SCALE + Vec3(chunk_x, 0, chunk_z) * TILE_SCALE - Vec3(0,0.5,0),
+								color = rgb(r,g,b)
+							)
+						
 
 		self.mesh = Mesh(vertices=self.vertices, triangles=self.triangles, uvs=self.uvs, normals=self.normals)
 		self.mesh.height_values = asarray(heightmap) #For ursina terraincasting
 		self.mesh.depth = h
 		self.mesh.width = w
-		mp = int(len(heightmap)/2)
-		val = biomemap[mp][mp]
-		for k in BIOME_MAP.keys():
-			if val < k:
-				break
-		self.biome = k
+		
 		Entity.__init__(self,
 			position = (chunk_x * TILE_SCALE, 0, chunk_z * TILE_SCALE),
 			model = self.mesh,
 			scale = TILE_SCALE,
 			texture = 'grass',
-			color = TERRAIN_COLOR[k]
+			color = rgb(r,g,b)
 		)
 		self.collider = self.mesh
 		self.spawnmap = spawnmap
@@ -109,7 +142,7 @@ class TerrainChunk(Entity):
 
 
 class DynamicTerrainLoader:
-	def __init__(self, app, seed = 9):
+	def __init__(self, app, seed = 9, minimap = True):
 		self.app = app
 		self.chunks = []
 		self.chunks_to_load = []
@@ -138,58 +171,29 @@ class DynamicTerrainLoader:
 		self.biome = None
 
 		self.num_biome_noises = 3
+		self.biomescale = BIOMESCALE
 		self.biome_noises = []
 		base_biome_val = self.seed*13*17
 		for i in range(self.num_biome_noises):
 			self.biome_noises.append(OpenSimplex(seed=base_biome_val + i).noise2d)
 
+		self.secondary_biomescale = SECONDARY_BIOMESCALE
+		self.num_secondary_biome_noises = 2
+		self.secondary_biome_noises = []
+		base_biome_val = self.seed*3*13*17
+		for i in range(self.num_secondary_biome_noises):
+			self.secondary_biome_noises.append(OpenSimplex(seed=base_biome_val + i).noise2d)
+
+		self.num_affinity_noises = 4
+		self.affinity_biomescale = AFFINITY_BIOMESCALE
+		self.affinity_noises = []
+		base_biome_val = self.seed*7*13*17
+		for i in range(self.num_affinity_noises):
+			self.affinity_noises.append(OpenSimplex(seed=base_biome_val + i).noise2d)
+
 		self.spawn_noise = OpenSimplex(seed=self.seed*7*13).noise2d #7 and 13 just magic
 
-		self.s = TILE_SCALE
-
-	# 	self.make_map()
-
-	# def make_map(self):
-	# 	from PIL import Image
-
-	# 	chunk_x = 0
-	# 	chunk_z = 0
-	# 	scale = 4 #How scaled the noise is
-	# 	steps = 4
-	# 	biomescale = 120 #How scaled the biomes are
-	# 	spawnmap, biomemap = [], []
-	# 	val = 500
-	# 	for i in linspace(-val, val, steps * val,endpoint=True):
-	# 		scaled_i = i/scale
-	# 		row, spawnrow, biomerow = [], [], []
-	# 		for	j in linspace(-val, val, steps * val,endpoint =True):
-	# 			scaled_j = j/scale
-	# 			# row.append(sum(n(scaled_i,scaled_j) for n in self.noises)/(self.num_noises) * self.y_scale)
-	# 			spawnrow.append(self.spawn_noise(scaled_i, scaled_j))
-	# 			biomerow.append(abs(sum([n((chunk_x + scaled_i)/biomescale, (chunk_z + scaled_j)/biomescale) for n in self.biome_noises])/(self.num_biome_noises)))
-	# 		# heightmap.append(row)
-	# 		spawnmap.append(spawnrow)
-	# 		biomemap.append(biomerow)
-
-		# def make_biome_map():
-		# 	biome_map = [[[0,0,0] for i in range(len(biomemap))] for i in range(len(biomemap[0]))]
-			
-		# 	for x in range(len(biomemap)):
-		# 		for z in range(len(biomemap[0])):
-		# 			val = biomemap[x][z]
-		# 			for k in BIOME_MAP.keys():
-		# 				if val < k:
-		# 					break
-		# 			color = MAP_COLOR[k]
-		# 			biome_map[x][z] = color
-
-		# 	biome_map = asarray(biome_map)
-		# 	im = Image.fromarray(uint8(biome_map))
-		# 	im.save("map.png")
-		
-		# make_biome_map()
-
-
+		self.chest_noise = OpenSimplex(seed=self.seed*123)
 
 	def update_fog_and_snow(self):
 		i = get_chunk_id(self.current_x, self.current_z)
@@ -204,31 +208,60 @@ class DynamicTerrainLoader:
 				self.target_skybox_color = skybox_color
 				break
 
-	def get_maps(self, chunk_x, chunk_z):
+	def get_maps(self,
+ 		chunk_x=0,
+ 		chunk_z=0,
+ 		radius=0,
+ 		skip = 1, #1 is no skip
+ 		divisions = 1,
+ 		status_function=None,
+ 		make_heightmap=True,
+ 		make_spawnmap=True,
+ 		make_biomemap=True,
+ 		make_secondary_biomemap=True,
+ 		make_affinitymap=True,
+ 		make_chestmap = True):
+
 		scale = 4 #How scaled the noise is
-		steps = 4
-		biomescale = 120 #How scaled the biomes are
-		heightmap, spawnmap, biomemap = [], [], []
-		for i in linspace(chunk_x - 1, chunk_x, steps,endpoint=True):
+		heightmap, spawnmap, biomemap, secondary_biomemap, affinitymap, chestmap = [], [], [], [], [], []
+
+		x_start = chunk_x - 1 if not radius else chunk_x - radius
+		x_end = chunk_x if not radius else chunk_x + radius
+		z_start = chunk_z - 1 if not radius else chunk_z - radius
+		z_end = chunk_z if not radius else chunk_z + radius
+
+		total = (2*radius)*(2*radius) / (skip * skip)
+		current = 0
+		diameter = 2 * radius if radius else 1
+
+		for i in linspace(x_start, x_end, num=int(diameter / skip) * divisions, endpoint=True):
 			scaled_i = i/scale
-			row, spawnrow, biomerow = [], [], []
-			for	j in linspace(chunk_z - 1, chunk_z, steps,endpoint =True):
+			row, spawnrow, biomerow, secondary_biomerow, affinityrow, chestrow = [], [], [], [], [], []
+			for	j in linspace(z_start, z_end, num=int(diameter / skip) * divisions, endpoint =True):
 				scaled_j = j/scale
-				row.append(sum(n(scaled_i,scaled_j) for n in self.noises)/(self.num_noises) * self.y_scale)
-				spawnrow.append(self.spawn_noise(scaled_i, scaled_j))
-				biomerow.append(sum(n((chunk_x + scaled_i)/biomescale, (chunk_z + scaled_j)/biomescale) for n in self.biome_noises)/(self.num_biome_noises))
+				if make_heightmap: row.append(sum(n(scaled_i,scaled_j) for n in self.noises)/(self.num_noises))
+				if make_spawnmap: spawnrow.append(self.spawn_noise(scaled_i, scaled_j))
+				if make_biomemap: biomerow.append(sum(list(n((chunk_x + scaled_i)/self.biomescale, (chunk_z + scaled_j)/self.biomescale) for n in self.biome_noises))/(self.num_biome_noises))
+				if make_secondary_biomemap: secondary_biomerow.append(sum(n((chunk_x + scaled_i)/self.secondary_biomescale, (chunk_z + scaled_j)/self.secondary_biomescale) for n in self.secondary_biome_noises)/(self.num_secondary_biome_noises))
+				if make_affinitymap: affinityrow.append(sum(n((chunk_x + scaled_i)/self.affinity_biomescale, (chunk_z + scaled_j)/self.affinity_biomescale) for n in self.affinity_noises)/(self.num_affinity_noises))
+				if make_chestmap: chestrow.append(self.spawn_noise(scaled_i*CHEST_SCALE, scaled_j*CHEST_SCALE))
+				current += 1
 			heightmap.append(row)
-			spawnmap.append(spawnrow)
 			biomemap.append(biomerow)
-		return heightmap, spawnmap, biomemap
+			secondary_biomemap.append(secondary_biomerow)
+			spawnmap.append(spawnrow)
+			affinitymap.append(affinityrow)
+			chestmap.append(chestrow)
+			if status_function: status_function(f"Calculating Maps - {(current/total)*100}%")
+		return heightmap, spawnmap, biomemap, secondary_biomemap, affinitymap, chestmap
 
 	def load_new_chunk(self, chunk_x, chunk_z):
 		self.chunks_to_load.append((chunk_x, chunk_z))
 
 	def _load_new_chunk(self, pos):
 		chunk_x, chunk_z = pos
-		heightmap, spawnmap, biomemap = self.get_maps(chunk_x, chunk_z)
-		chunk = TerrainChunk(self.app, self.seed, chunk_x, chunk_z, heightmap, spawnmap, biomemap)
+		heightmap, spawnmap, biomemap, secondary_biomemap, affinitymap, chestmap = self.get_maps(chunk_x, chunk_z, divisions = 4)
+		chunk = TerrainChunk(self.app, self.seed, chunk_x, chunk_z, heightmap, spawnmap, biomemap, secondary_biomemap, affinitymap, chestmap)
 		self.chunks.append(chunk)
 
 	def update(self):
@@ -320,6 +353,8 @@ class DynamicTerrainLoader:
 		self.current_x, self.current_z = get_chunk_numerals_by_position(self.app.player.position)
 		if self.current_x == last_x and self.current_z == last_z and self.biome:
 			return False
+		elif self.current_x == last_x and self.current_z == last_z:
+			pass
 		else:
 			halfrender = int(self.app.render_distance / 2)
 			min_x, min_z = self.current_x - halfrender, self.current_z - halfrender
@@ -339,4 +374,5 @@ class DynamicTerrainLoader:
 					except TypeError:
 						pass
 			self.current_chunk_ids = current_chunk_ids
+			self.app.ui.minimap.minimap_needs_update = True
 			return True
